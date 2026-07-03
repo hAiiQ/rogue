@@ -7,7 +7,27 @@
   </head>
   <body>
     <div id="app-shell">
-      <main id="game" tabindex="0" aria-label="Phaser Spiel"></main>
+      <main id="game" tabindex="0" aria-label="Phaser Spiel">
+        <div id="settings-panel" class="settings-panel" hidden>
+          <div class="settings-title">
+            <strong>EINSTELLUNGEN</strong>
+            <button id="settings-close" class="close-button" type="button" aria-label="Einstellungen schließen">×</button>
+          </div>
+          <label for="master-volume">Gesamtlautstärke <output id="master-volume-value">70%</output></label>
+          <input id="master-volume" type="range" min="0" max="100" value="70" />
+          <label for="music-volume">Musik <output id="music-volume-value">55%</output></label>
+          <input id="music-volume" type="range" min="0" max="100" value="55" />
+          <label for="sfx-volume">SFX <output id="sfx-volume-value">70%</output></label>
+          <input id="sfx-volume" type="range" min="0" max="100" value="70" />
+          <label for="fps-select">FPS</label>
+          <select id="fps-select">
+            <option value="30">30 FPS</option>
+            <option value="60" selected>60 FPS</option>
+            <option value="90">90 FPS</option>
+            <option value="120">120 FPS</option>
+          </select>
+        </div>
+      </main>
       <aside id="sidebar" aria-label="Etagenübersicht und Team">
         <header class="sidebar-header">
           <div>
@@ -50,18 +70,6 @@
           <span><kbd>R</kbd> Neue Ebene</span>
         </footer>
 
-        <div id="settings-panel" class="settings-panel" hidden>
-          <div class="settings-title">
-            <strong>EINSTELLUNGEN</strong>
-            <button id="settings-close" class="close-button" type="button" aria-label="Einstellungen schließen">×</button>
-          </div>
-          <label for="master-volume">Gesamtlautstärke <output id="master-volume-value">70%</output></label>
-          <input id="master-volume" type="range" min="0" max="100" value="70" />
-          <label for="music-volume">Musik <output id="music-volume-value">55%</output></label>
-          <input id="music-volume" type="range" min="0" max="100" value="55" />
-          <button id="music-toggle" class="menu-button" type="button">Musik: AN</button>
-          <p>Die Musik startet nach der ersten Eingabe.</p>
-        </div>
       </aside>
     </div>
     <script type="module" src="/src/main.js"></script>

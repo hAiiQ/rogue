@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
 import { DIRECTIONS, generateDungeon } from './dungeon.js';
-import { initializeUI, updateDungeonUI } from './ui.js';
+import { initializeUI, playSfx, updateDungeonUI } from './ui.js';
 import trainerRedUrl from '../Character/trainer_POKEMONTRAINER_Red.png?url';
 import outsideTilesetUrl from '../assets/Outside.png?url';
 
@@ -76,7 +76,10 @@ class RoomScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.input.keyboard.on('keydown-R', () => this.createNewFloor());
-    initializeUI();
+    initializeUI({
+      onFpsChange: (fps) => this.setTargetFps(fps),
+      onSettingsChange: (open) => { this.settingsOpen = open; }
+    });
     this.createNewFloor();
 
     window.__ROGUE_DEBUG__ = {
@@ -216,6 +219,10 @@ class RoomScene extends Phaser.Scene {
 
     this.setPlayerFacing(direction);
     if (!this.canPlayerMove(targetTileX, targetTileY)) {
+      if (!this.lastBumpAt || this.time.now - this.lastBumpAt > 180) {
+        playSfx('bump');
+        this.lastBumpAt = this.time.now;
+      }
       this.snapPlayerToGrid();
       return;
     }
@@ -235,6 +242,18 @@ class RoomScene extends Phaser.Scene {
 
   tileToWorld(tile) {
     return tile * TILE_SIZE + TILE_SIZE / 2;
+  }
+
+  setTargetFps(fps) {
+    const loop = this.game.loop;
+    const shouldWake = loop.running;
+    if (shouldWake) loop.sleep();
+    loop.targetFps = fps;
+    loop.fpsLimit = fps;
+    loop.hasFpsLimit = true;
+    loop._target = 1000 / fps;
+    loop._limitRate = 1000 / fps;
+    if (shouldWake) loop.wake();
   }
 
   snapPlayerToGrid() {
@@ -340,6 +359,7 @@ class RoomScene extends Phaser.Scene {
       this.updatePlayerMove();
       return;
     }
+    if (this.settingsOpen) return;
 
     if (this.cursors.up.isDown || this.wasd.W.isDown) this.startPlayerMove('up');
     else if (this.cursors.down.isDown || this.wasd.S.isDown) this.startPlayerMove('down');
@@ -355,6 +375,10 @@ new Phaser.Game({
   height: MAP_HEIGHT,
   backgroundColor: '#101710',
   pixelArt: true,
+  fps: {
+    target: 60,
+    limit: 60
+  },
   physics: {
     default: 'arcade',
     arcade: { gravity: { x: 0, y: 0 }, debug: false }

@@ -1,33 +1,57 @@
 import backgroundMusicUrl from '../assets/audio/title.ogg?url';
+import menuOpenUrl from '../assets/audio/menu-open.ogg?url';
+import menuCloseUrl from '../assets/audio/menu-close.ogg?url';
+import cursorUrl from '../assets/audio/cursor.ogg?url';
+import bumpUrl from '../assets/audio/bump.ogg?url';
 
 let music;
-let musicEnabled = true;
 let masterVolume = 0.7;
 let musicVolume = 0.55;
+let sfxVolume = 0.7;
+const sfxUrls = {
+  menuOpen: menuOpenUrl,
+  menuClose: menuCloseUrl,
+  cursor: cursorUrl,
+  bump: bumpUrl
+};
 
 function applyAudioSettings() {
   if (!music) return;
-  music.volume = musicEnabled ? masterVolume * musicVolume : 0;
-  document.querySelector('#music-toggle').textContent = `Musik: ${musicEnabled ? 'AN' : 'AUS'}`;
+  music.volume = masterVolume * musicVolume;
 }
 
-export function initializeUI() {
+export function playSfx(name) {
+  const url = sfxUrls[name];
+  if (!url || masterVolume === 0 || sfxVolume === 0) return;
+  const sound = new Audio(url);
+  sound.volume = masterVolume * sfxVolume;
+  sound.play().catch(() => {});
+}
+
+export function initializeUI({ onFpsChange, onSettingsChange }) {
   music = new Audio(backgroundMusicUrl);
   music.loop = true;
   music.preload = 'auto';
 
   masterVolume = Number(localStorage.getItem('rogue-master-volume') ?? 70) / 100;
   musicVolume = Number(localStorage.getItem('rogue-music-volume') ?? 55) / 100;
-  musicEnabled = localStorage.getItem('rogue-music-enabled') !== 'false';
+  sfxVolume = Number(localStorage.getItem('rogue-sfx-volume') ?? 70) / 100;
+  const savedFps = Number(localStorage.getItem('rogue-fps') ?? 60);
 
   const masterSlider = document.querySelector('#master-volume');
   const musicSlider = document.querySelector('#music-volume');
+  const sfxSlider = document.querySelector('#sfx-volume');
+  const fpsSelect = document.querySelector('#fps-select');
   masterSlider.value = String(Math.round(masterVolume * 100));
   musicSlider.value = String(Math.round(musicVolume * 100));
+  sfxSlider.value = String(Math.round(sfxVolume * 100));
+  fpsSelect.value = String(savedFps);
+  onFpsChange(savedFps);
 
   const updateOutputs = () => {
     document.querySelector('#master-volume-value').value = `${masterSlider.value}%`;
     document.querySelector('#music-volume-value').value = `${musicSlider.value}%`;
+    document.querySelector('#sfx-volume-value').value = `${sfxSlider.value}%`;
   };
   updateOutputs();
   applyAudioSettings();
@@ -44,20 +68,28 @@ export function initializeUI() {
     updateOutputs();
     applyAudioSettings();
   });
-
-  document.querySelector('#music-toggle').addEventListener('click', () => {
-    musicEnabled = !musicEnabled;
-    localStorage.setItem('rogue-music-enabled', String(musicEnabled));
-    applyAudioSettings();
-    if (musicEnabled) music.play().catch(() => {});
+  sfxSlider.addEventListener('input', () => {
+    sfxVolume = Number(sfxSlider.value) / 100;
+    localStorage.setItem('rogue-sfx-volume', sfxSlider.value);
+    updateOutputs();
+  });
+  sfxSlider.addEventListener('change', () => playSfx('cursor'));
+  fpsSelect.addEventListener('change', () => {
+    const fps = Number(fpsSelect.value);
+    localStorage.setItem('rogue-fps', String(fps));
+    onFpsChange(fps);
+    playSfx('cursor');
   });
 
   const settingsButton = document.querySelector('#settings-button');
   const settingsPanel = document.querySelector('#settings-panel');
   settingsPanel.addEventListener('keydown', (event) => event.stopPropagation());
   const setSettingsOpen = (open) => {
+    if (settingsPanel.hidden === !open) return;
     settingsPanel.hidden = !open;
     settingsButton.setAttribute('aria-expanded', String(open));
+    onSettingsChange(open);
+    playSfx(open ? 'menuOpen' : 'menuClose');
   };
   settingsButton.addEventListener('click', () => setSettingsOpen(settingsPanel.hidden));
   document.querySelector('#settings-close').addEventListener('click', () => setSettingsOpen(false));
@@ -66,7 +98,7 @@ export function initializeUI() {
   });
 
   const startMusic = () => {
-    if (musicEnabled) music.play().catch(() => {});
+    music.play().catch(() => {});
     window.removeEventListener('pointerdown', startMusic);
     window.removeEventListener('keydown', startMusic);
   };
