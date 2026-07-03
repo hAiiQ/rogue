@@ -268,109 +268,7 @@
          "name":"Normal",
          "opacity":1,
          "type":"group",
-         "visible":true,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "id":32,
-         "layers":[
-                {
-                 "draworder":"topdown",
-                 "id":28,
-                 "name":"Trigger Oben",
-                 "objects":[
-                        {
-                         "height":1,
-                         "id":8,
-                         "name":"",
-                         "opacity":1,
-                         "rotation":0,
-                         "type":"",
-                         "visible":true,
-                         "width":64,
-                         "x":256,
-                         "y":0
-                        }],
-                 "opacity":1,
-                 "type":"objectgroup",
-                 "visible":true,
-                 "x":0,
-                 "y":0
-                }, 
-                {
-                 "draworder":"topdown",
-                 "id":29,
-                 "name":"Trigger Unten",
-                 "objects":[
-                        {
-                         "height":1,
-                         "id":9,
-                         "name":"",
-                         "opacity":1,
-                         "rotation":0,
-                         "type":"",
-                         "visible":true,
-                         "width":64,
-                         "x":256,
-                         "y":319
-                        }],
-                 "opacity":1,
-                 "type":"objectgroup",
-                 "visible":true,
-                 "x":0,
-                 "y":0
-                }, 
-                {
-                 "draworder":"topdown",
-                 "id":30,
-                 "name":"Trigger Links",
-                 "objects":[
-                        {
-                         "height":64,
-                         "id":11,
-                         "name":"",
-                         "opacity":1,
-                         "rotation":0,
-                         "type":"",
-                         "visible":true,
-                         "width":1,
-                         "x":0,
-                         "y":128
-                        }],
-                 "opacity":1,
-                 "type":"objectgroup",
-                 "visible":true,
-                 "x":0,
-                 "y":0
-                }, 
-                {
-                 "draworder":"topdown",
-                 "id":31,
-                 "name":"Trigger Rechts",
-                 "objects":[
-                        {
-                         "height":64,
-                         "id":12,
-                         "name":"",
-                         "opacity":1,
-                         "rotation":0,
-                         "type":"",
-                         "visible":true,
-                         "width":1,
-                         "x":575,
-                         "y":128
-                        }],
-                 "opacity":1,
-                 "type":"objectgroup",
-                 "visible":true,
-                 "x":0,
-                 "y":0
-                }],
-         "name":"Triggers",
-         "opacity":1,
-         "type":"group",
-         "visible":true,
+         "visible":false,
          "x":0,
          "y":0
         }, 
@@ -485,7 +383,7 @@
          "name":"Collisions",
          "opacity":1,
          "type":"group",
-         "visible":true,
+         "visible":false,
          "x":0,
          "y":0
         }],

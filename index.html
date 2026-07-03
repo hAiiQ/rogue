@@ -6,7 +6,64 @@
     <title>Rogue</title>
   </head>
   <body>
-    <main id="game" tabindex="0" aria-label="Phaser Spiel"></main>
+    <div id="app-shell">
+      <main id="game" tabindex="0" aria-label="Phaser Spiel"></main>
+      <aside id="sidebar" aria-label="Etagenübersicht und Team">
+        <header class="sidebar-header">
+          <div>
+            <span class="eyebrow">AKTUELLE EBENE</span>
+            <strong>Waldpfad</strong>
+          </div>
+          <button id="settings-button" class="icon-button" type="button" aria-label="Einstellungen öffnen" aria-expanded="false">⚙</button>
+        </header>
+
+        <section class="panel map-panel" aria-labelledby="map-title">
+          <div class="panel-title-row">
+            <h1 id="map-title">KARTE</h1>
+            <span id="room-counter">1 / 1</span>
+          </div>
+          <div id="minimap" role="img" aria-label="Karte der aktuellen Ebene"></div>
+          <div class="map-legend">
+            <span><i class="legend-current"></i>Aktuell</span>
+            <span><i class="legend-visited"></i>Besucht</span>
+            <span><i class="legend-hidden"></i>Unentdeckt</span>
+          </div>
+        </section>
+
+        <section class="panel party-panel" aria-labelledby="party-title">
+          <div class="panel-title-row">
+            <h2 id="party-title">DEIN TEAM</h2>
+            <span>0 / 6</span>
+          </div>
+          <div class="party-grid">
+            <div class="party-slot"><span>1</span></div>
+            <div class="party-slot"><span>2</span></div>
+            <div class="party-slot"><span>3</span></div>
+            <div class="party-slot"><span>4</span></div>
+            <div class="party-slot"><span>5</span></div>
+            <div class="party-slot"><span>6</span></div>
+          </div>
+        </section>
+
+        <footer class="sidebar-footer">
+          <span><kbd>WASD</kbd> Bewegen</span>
+          <span><kbd>R</kbd> Neue Ebene</span>
+        </footer>
+
+        <div id="settings-panel" class="settings-panel" hidden>
+          <div class="settings-title">
+            <strong>EINSTELLUNGEN</strong>
+            <button id="settings-close" class="close-button" type="button" aria-label="Einstellungen schließen">×</button>
+          </div>
+          <label for="master-volume">Gesamtlautstärke <output id="master-volume-value">70%</output></label>
+          <input id="master-volume" type="range" min="0" max="100" value="70" />
+          <label for="music-volume">Musik <output id="music-volume-value">55%</output></label>
+          <input id="music-volume" type="range" min="0" max="100" value="55" />
+          <button id="music-toggle" class="menu-button" type="button">Musik: AN</button>
+          <p>Die Musik startet nach der ersten Eingabe.</p>
+        </div>
+      </aside>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

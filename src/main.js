@@ -1,19 +1,26 @@
 import Phaser from 'phaser';
 import './style.css';
 import { DIRECTIONS, generateDungeon } from './dungeon.js';
+import { initializeUI, updateDungeonUI } from './ui.js';
 import trainerRedUrl from '../Character/trainer_POKEMONTRAINER_Red.png?url';
 import outsideTilesetUrl from '../assets/Outside.png?url';
 
 const MAP_WIDTH = 576;
 const MAP_HEIGHT = 320;
 const TILE_SIZE = 32;
+const PLAYER_FRAME_HEIGHT = 48;
+const PLAYER_TILE_ANCHOR_Y = (PLAYER_FRAME_HEIGHT / 2 + (PLAYER_FRAME_HEIGHT - TILE_SIZE) / 2) / PLAYER_FRAME_HEIGHT;
 const PLAYER_SPEED = 150;
+const WALK_FRAME_RATE = (PLAYER_SPEED / TILE_SIZE) * 4;
+const CAMERA_PAN_DURATION = 400;
+const START_TILE_X = 8;
+const START_TILE_Y = 5;
 const PLAYER_TEXTURE = 'trainer-red';
 const playerFrames = {
-  down: [0, 1, 2, 3],
-  left: [4, 5, 6, 7],
-  right: [8, 9, 10, 11],
-  up: [12, 13, 14, 15]
+  down: [0, 1, 0, 3],
+  left: [4, 5, 4, 7],
+  right: [8, 9, 8, 11],
+  up: [12, 13, 12, 15]
 };
 
 const normalizeName = (name) => name
@@ -51,14 +58,17 @@ class RoomScene extends Phaser.Scene {
       this.anims.create({
         key: `walk-${direction}`,
         frames: this.anims.generateFrameNumbers(PLAYER_TEXTURE, { frames }),
-        frameRate: 10,
+        frameRate: WALK_FRAME_RATE,
         repeat: -1
       });
     }
 
     this.player = this.physics.add.sprite(0, 0, PLAYER_TEXTURE, playerFrames.down[0]);
-    this.player.setDepth(20).setCollideWorldBounds(true);
-    this.player.body.setSize(20, 12).setOffset(6, 36);
+    this.player
+      .setOrigin(0.5, PLAYER_TILE_ANCHOR_Y)
+      .setDepth(20)
+      .setCollideWorldBounds(true);
+    this.player.body.setSize(20, 12).setOffset(6, 26);
     this.playerFacing = 'down';
     this.playerMove = null;
     document.querySelector('#game').dataset.facing = this.playerFacing;
@@ -66,6 +76,7 @@ class RoomScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,A,S,D');
     this.input.keyboard.on('keydown-R', () => this.createNewFloor());
+    initializeUI();
     this.createNewFloor();
 
     window.__ROGUE_DEBUG__ = {
@@ -76,11 +87,14 @@ class RoomScene extends Phaser.Scene {
   }
 
   createNewFloor() {
+    this.tweens.killTweensOf(this.cameras.main);
     for (const collider of this.worldColliders ?? []) collider.destroy();
     for (const map of this.roomMaps ?? []) map.destroy();
 
     this.dungeon = generateDungeon(6, 10);
     this.currentRoomId = this.dungeon.startRoomId;
+    this.visitedRoomIds = new Set([this.currentRoomId]);
+    this.cameraMoving = false;
     this.playerMove = null;
     this.player.anims.stop();
     this.playerFacing = 'down';
@@ -89,12 +103,15 @@ class RoomScene extends Phaser.Scene {
 
     this.buildDungeonWorld();
     const startRoom = this.dungeon.rooms[this.currentRoomId];
-    const startX = startRoom.x * MAP_WIDTH + MAP_WIDTH / 2;
-    const startY = startRoom.y * MAP_HEIGHT + MAP_HEIGHT / 2;
+    this.playerTileX = startRoom.x * (MAP_WIDTH / TILE_SIZE) + START_TILE_X;
+    this.playerTileY = startRoom.y * (MAP_HEIGHT / TILE_SIZE) + START_TILE_Y;
+    const startX = this.tileToWorld(this.playerTileX);
+    const startY = this.tileToWorld(this.playerTileY);
     this.player.setPosition(startX, startY).setVelocity(0);
     this.player.body.reset(startX, startY);
 
-    this.cameras.main.startFollow(this.player, true, 1, 1);
+    this.cameras.main.stopFollow();
+    this.cameras.main.setScroll(startRoom.x * MAP_WIDTH, startRoom.y * MAP_HEIGHT);
     this.cameras.main.setRoundPixels(true);
     this.updateCurrentRoom();
   }
@@ -180,10 +197,7 @@ class RoomScene extends Phaser.Scene {
       }
     }
 
-    for (const layer of [...collisionBase, ...Object.values(collisionLayers).flat()]) {
-      layer.setVisible(false);
-      this.worldColliders.push(this.physics.add.collider(this.player, layer));
-    }
+    for (const layer of [...collisionBase, ...Object.values(collisionLayers).flat()]) layer.setVisible(false);
     this.roomMaps.push(map);
   }
 
@@ -195,44 +209,58 @@ class RoomScene extends Phaser.Scene {
   }
 
   startPlayerMove(direction) {
-    if (this.playerMove) return;
+    if (this.playerMove || this.cameraMoving) return;
     const vector = DIRECTIONS[direction];
-    const startX = this.player.x;
-    const startY = this.player.y;
+    const targetTileX = this.playerTileX + vector.dx;
+    const targetTileY = this.playerTileY + vector.dy;
 
     this.setPlayerFacing(direction);
-    if (!this.canPlayerMove(vector.dx, vector.dy)) return;
+    if (!this.canPlayerMove(targetTileX, targetTileY)) {
+      this.snapPlayerToGrid();
+      return;
+    }
 
     this.player.play(`walk-${direction}`);
     this.playerMove = {
       direction,
-      startX,
-      startY,
-      targetX: startX + vector.dx * TILE_SIZE,
-      targetY: startY + vector.dy * TILE_SIZE
+      startX: this.tileToWorld(this.playerTileX),
+      startY: this.tileToWorld(this.playerTileY),
+      targetTileX,
+      targetTileY,
+      targetX: this.tileToWorld(targetTileX),
+      targetY: this.tileToWorld(targetTileY)
     };
     this.player.setVelocity(vector.dx * PLAYER_SPEED, vector.dy * PLAYER_SPEED);
   }
 
-  canPlayerMove(directionX, directionY) {
-    const body = this.player.body;
-    const targetLeft = body.left + directionX * TILE_SIZE;
-    const targetTop = body.top + directionY * TILE_SIZE;
-    const inset = 1;
+  tileToWorld(tile) {
+    return tile * TILE_SIZE + TILE_SIZE / 2;
+  }
+
+  snapPlayerToGrid() {
+    this.player.body.reset(this.tileToWorld(this.playerTileX), this.tileToWorld(this.playerTileY));
+  }
+
+  canPlayerMove(targetTileX, targetTileY) {
+    const targetX = this.tileToWorld(targetTileX);
+    const targetY = this.tileToWorld(targetTileY);
+    const probeSize = 8;
+    const probeLeft = targetX - probeSize / 2;
+    const probeTop = targetY - probeSize / 2;
 
     if (
-      targetLeft < this.worldBounds.left
-      || targetTop < this.worldBounds.top
-      || targetLeft + body.width > this.worldBounds.right
-      || targetTop + body.height > this.worldBounds.bottom
+      probeLeft < this.worldBounds.left
+      || probeTop < this.worldBounds.top
+      || probeLeft + probeSize > this.worldBounds.right
+      || probeTop + probeSize > this.worldBounds.bottom
     ) return false;
 
     return !this.blockingCollisionLayers.some((layer) => (
       layer.getTilesWithinWorldXY(
-        targetLeft + inset,
-        targetTop + inset,
-        body.width - inset * 2,
-        body.height - inset * 2,
+        probeLeft,
+        probeTop,
+        probeSize,
+        probeSize,
         { isNotEmpty: true }
       ).length > 0
     ));
@@ -243,7 +271,7 @@ class RoomScene extends Phaser.Scene {
     if (!move) return;
 
     if (this.player.body.blocked[move.direction]) {
-      this.finishPlayerMove(move, move.startX, move.startY);
+      this.finishPlayerMove(move, false);
       return;
     }
 
@@ -254,32 +282,56 @@ class RoomScene extends Phaser.Scene {
         : move.direction === 'up'
           ? this.player.y <= move.targetY
           : this.player.y >= move.targetY;
-    if (reached) this.finishPlayerMove(move, move.targetX, move.targetY);
+    if (reached) this.finishPlayerMove(move, true);
   }
 
-  finishPlayerMove(move, x, y) {
+  finishPlayerMove(move, reachedTarget) {
+    if (reachedTarget) {
+      this.playerTileX = move.targetTileX;
+      this.playerTileY = move.targetTileY;
+    }
     this.player.anims.stop();
     this.player.setFrame(playerFrames[move.direction][0]);
-    this.player.setPosition(x, y).setVelocity(0);
+    this.player
+      .setPosition(this.tileToWorld(this.playerTileX), this.tileToWorld(this.playerTileY))
+      .setVelocity(0);
     this.playerMove = null;
-    this.updateCurrentRoom();
+    this.updateCurrentRoom(move.direction);
   }
 
-  updateCurrentRoom() {
+  updateCurrentRoom(moveDirection = null) {
+    const direction = moveDirection ? DIRECTIONS[moveDirection] : { dx: 0, dy: 0 };
+    const probeX = this.player.x + direction.dx * 0.5;
+    const probeY = this.player.y + direction.dy * 0.5;
     const room = this.dungeon.rooms.find((candidate) => {
       const left = candidate.x * MAP_WIDTH;
       const top = candidate.y * MAP_HEIGHT;
-      return this.player.x >= left && this.player.x < left + MAP_WIDTH
-        && this.player.y >= top && this.player.y < top + MAP_HEIGHT;
+      return probeX >= left && probeX < left + MAP_WIDTH
+        && probeY >= top && probeY < top + MAP_HEIGHT;
     });
     if (!room) return;
 
+    const roomChanged = room.id !== this.currentRoomId;
     this.currentRoomId = room.id;
+    this.visitedRoomIds.add(room.id);
     const game = document.querySelector('#game');
     game.dataset.currentRoom = String(room.id);
     game.dataset.doors = Object.entries(room.doors)
       .map(([direction, open]) => `${direction}:${open}`)
       .join(',');
+    updateDungeonUI(this.dungeon, room.id, this.visitedRoomIds);
+
+    if (roomChanged) {
+      this.cameraMoving = true;
+      this.tweens.add({
+        targets: this.cameras.main,
+        scrollX: room.x * MAP_WIDTH,
+        scrollY: room.y * MAP_HEIGHT,
+        duration: CAMERA_PAN_DURATION,
+        ease: 'Sine.easeInOut',
+        onComplete: () => { this.cameraMoving = false; }
+      });
+    }
   }
 
   update() {
@@ -308,7 +360,8 @@ new Phaser.Game({
     arcade: { gravity: { x: 0, y: 0 }, debug: false }
   },
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.NONE,
+    autoRound: true,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   scene: RoomScene
